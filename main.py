@@ -183,9 +183,9 @@ def hcp_pc_distributions():
     plt.show()
 
 
-def gen_random_vec(dists):
-    vec = np.zeros(features_hcp.shape[1])
-    for i in range(features_hcp.shape[1]):
+def gen_random_vec(dists, features):
+    vec = np.zeros(features.shape[1])
+    for i in range(features.shape[1]):
         vec[i] = dists[i].rvs()
     return vec
 
@@ -193,7 +193,7 @@ def gen_random_vec(dists):
 def gen_dist_projections_random_vector_from_hcp():
     random_vec_proj_hcp = []
     for i in range(100):
-        curr_random_vec = gen_random_vec(hcp_features_distributions)
+        curr_random_vec = gen_random_vec(hcp_features_distributions, features_hcp)
         curr_random_vec /= np.linalg.norm(curr_random_vec)
         vec_proj = np.sqrt(
             np.power(np.inner(curr_random_vec, hcp_comps[0]), 2) + np.power(np.inner(curr_random_vec, hcp_comps[1]), 2))
@@ -315,12 +315,6 @@ def age_dist():
 
 
 def sex_ratio():
-    asd_sex = meta_df.loc[meta_df['DX_GROUP'] == 1, 'SEX'].dropna()
-    control_sex = meta_df.loc[meta_df['DX_GROUP'] == 2, 'SEX'].dropna()
-    asd_male = asd_sex.loc[asd_sex == 1]
-    asd_female = asd_sex.loc[asd_sex == 2]
-    control_male = control_sex.loc[control_sex == 1]
-    control_female = control_sex.loc[control_sex == 2]
     fig, ax = plt.subplots(figsize=(7, 5))
     asd_bar = ax.bar(x=np.arange(2), height=(len(asd_male), len(asd_female)), width=0.3, color="steelblue")
     control_bar = ax.bar(x=np.arange(2) + 0.4, height=(len(control_male), len(control_female)), width=0.3,
@@ -343,16 +337,21 @@ if __name__ == '__main__':
     meta_df = pd.read_csv(path_to_metadata)
 
     # %% only for initiation - init groups (ASD & control)
-    create_features_groups(path_to_features, path_to_metadata, results_dir)
+    # create_features_groups(path_to_features, path_to_metadata, results_dir)
 
     # %% backround data check - ages dist
     age_dist()
 
     # %% backround data check - sex comparison
-    sex_ratio()
+    asd_sex = meta_df.loc[meta_df['DX_GROUP'] == 1, 'SEX'].dropna()
+    control_sex = meta_df.loc[meta_df['DX_GROUP'] == 2, 'SEX'].dropna()
+    asd_male = asd_sex.loc[asd_sex == 1]
+    asd_female = asd_sex.loc[asd_sex == 2]
+    control_male = control_sex.loc[control_sex == 1]
+    control_female = control_sex.loc[control_sex == 2]
+    # sex_ratio()
 
     # backround data check - autism level ?
-
 
     # %% reduce dimention to 2D
     features_hcp = pd.read_csv(
@@ -360,9 +359,9 @@ if __name__ == '__main__':
     features_control = pd.read_csv(
         "C:/Users/ronyz/Yuval Hart's Lab/ABIDE_project/ABIDE-project/csv_files/control_features.csv")  # np.genfromtxt('/sci/labs/uvhart/ronyzerkavod/ouputs/ABIDE/asd_control_groups/asd_features.csv',delimiter=',')
     features_asd = pd.read_csv("C:/Users/ronyz/Yuval Hart's Lab/ABIDE_project/ABIDE-project/csv_files/asd_features.csv")
-    control_pca = PCA(2).fit(features_control)
-    asd_pca = PCA(2).fit(features_asd)
-    hcp_pca = PCA(2).fit(features_hcp)
+    control_pca = PCA(2).fit_transform(features_control)
+    asd_pca = PCA(2).fit_transform(features_asd)
+    hcp_pca = PCA(2).fit_transform(features_hcp)
 
     # %% plot the EV
     explained_variance()
@@ -446,3 +445,32 @@ if __name__ == '__main__':
         hist = np.histogram(features_hcp.iloc[:, i], bins=50)
         hcp_features_distributions.append(scipy.stats.rv_histogram(hist))
     plot_projections_random_vector_from_hcp()
+
+    # %%
+    abide_features = np.concatenate((np.array(features_asd), np.array(features_control)), axis=0)
+    abide_male_bool = np.array(meta_df)[:, 10] == 1
+    abide_male_bool = abide_male_bool[:-10]
+    abide_features_male = np.array(abide_features)[abide_male_bool, :]
+    abide_male_dist = []
+    for i in range(abide_features_male.shape[1]):
+        hist = np.histogram(pd.DataFrame(abide_features_male).iloc[:, i], bins=50)
+        abide_male_dist.append(scipy.stats.rv_histogram(hist))
+    male_sampeled_vecs = np.zeros((30, abide_features_male.shape[1]))
+    for i in range(30):
+        male_sampeled_vecs[i] = gen_random_vec(abide_male_dist, abide_features_male)
+    np.savetxt("C:/Users/ronyz/Yuval Hart's Lab/ABIDE_project/ABIDE-project/csv_files/abide_rand_male_features.csv",
+               male_sampeled_vecs,
+               delimiter=",")
+    abide_female_bool = ~abide_male_bool
+    abide_features_female = np.array(abide_features)[abide_female_bool, :]
+    abide_female_dist = []
+    for i in range(abide_features_female.shape[1]):
+        hist = np.histogram(pd.DataFrame(abide_features_female).iloc[:, i], bins=50)
+        abide_female_dist.append(scipy.stats.rv_histogram(hist))
+    female_sampeled_vecs = np.zeros((30, abide_features_female.shape[1]))
+    for i in range(30):
+        female_sampeled_vecs[i] = gen_random_vec(abide_female_dist, abide_features_female)
+    np.savetxt("C:/Users/ronyz/Yuval Hart's Lab/ABIDE_project/ABIDE-project/csv_files/abide_rand_female_features.csv",
+               female_sampeled_vecs,
+               delimiter=",")
+
